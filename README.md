@@ -93,8 +93,8 @@ Automated Counterexample Discovery Engine that challenges intuitive heuristics:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/greedylab.git
-cd greedylab
+git clone https://github.com/YOUR_USERNAME/GreedyLab.git
+cd GreedyLab
 ```
 
 ### 2. Install Dependencies
