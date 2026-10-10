@@ -37,7 +37,7 @@ class DisjointSet {
 
 export const runKruskal = (nodes: GraphNode[], edges: GraphEdge[]) => {
   if (nodes.length === 0 || edges.length === 0) {
-    return { mstEdges: [], totalWeight: 0, steps: [], sortedEdges: [] };
+    return { mstEdges: [], totalWeight: 0, isSpanningTree: nodes.length <= 1, steps: [], sortedEdges: [] };
   }
 
   const sortedEdges = [...edges].sort((a, b) => a.weight - b.weight);

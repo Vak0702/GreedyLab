@@ -2,7 +2,7 @@ import { GraphNode, GraphEdge, AlgorithmStep } from '../../types/algorithms';
 
 export const runPrim = (nodes: GraphNode[], edges: GraphEdge[], startNodeId?: string) => {
   if (nodes.length === 0 || edges.length === 0) {
-    return { mstEdges: [], totalWeight: 0, visitedNodes: [], steps: [] };
+    return { mstEdges: [], totalWeight: 0, visitedNodes: [], isSpanningTree: nodes.length <= 1, steps: [] };
   }
 
   const startId = startNodeId || nodes[0].id;
@@ -47,6 +47,14 @@ export const runPrim = (nodes: GraphNode[], edges: GraphEdge[], startNodeId?: st
     const frontier = getFrontier();
     if (frontier.length === 0) {
       // Disconnected graph
+      steps.push({
+        stepNumber: stepNum,
+        action: 'Stop: Graph Is Disconnected',
+        explanation: `No edge crosses from the visited component to the remaining ${nodes.length - visited.size} vertex/vertices. The result is a minimum spanning forest for the reachable component, not a spanning tree.`,
+        visitedNodes: Array.from(visited),
+        mstEdges: [...mstEdges],
+        frontierEdges: []
+      });
       break;
     }
 

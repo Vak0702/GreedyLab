@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { GraphNode, GraphEdge, AlgorithmStep } from '../../types/algorithms';
 
 interface Props {
@@ -7,6 +7,13 @@ interface Props {
   mode: 'kruskal' | 'prim' | 'dijkstra';
   currentStepData?: AlgorithmStep;
   realWorldMode?: boolean;
+  editable?: boolean;
+  onNodesChange?: (nodes: GraphNode[]) => void;
+  onEdgesChange?: (edges: GraphEdge[]) => void;
+  sampleNodes?: GraphNode[];
+  sampleEdges?: GraphEdge[];
+  onClearGraph?: () => void;
+  onImportGraph?: (nodes: GraphNode[], edges: GraphEdge[]) => void;
 }
 
 export const GraphVisualizer: React.FC<Props> = ({
@@ -14,7 +21,14 @@ export const GraphVisualizer: React.FC<Props> = ({
   edges,
   mode,
   currentStepData,
-  realWorldMode
+  realWorldMode,
+  editable = false,
+  onNodesChange,
+  onEdgesChange,
+  sampleNodes = [],
+  sampleEdges = [],
+  onClearGraph,
+  onImportGraph
 }) => {
   const currentEdge = currentStepData?.currentEdge;
   const mstEdges = currentStepData?.mstEdges || [];
@@ -24,6 +38,133 @@ export const GraphVisualizer: React.FC<Props> = ({
   const currentNode = currentStepData?.currentNode;
   const distances = currentStepData?.distances || {};
   const relaxedEdge = currentStepData?.relaxedEdge;
+  const [editorMode, setEditorMode] = useState<'select' | 'add-node' | 'connect' | 'delete'>('select');
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [newEdgeWeight, setNewEdgeWeight] = useState('1');
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const importRef = useRef<HTMLInputElement | null>(null);
+
+  const getCanvasPoint = (event: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(22, Math.min(498, ((event.clientX - rect.left) / rect.width) * 520)),
+      y: Math.max(22, Math.min(238, ((event.clientY - rect.top) / rect.height) * 260))
+    };
+  };
+
+  const nextNodeId = () => {
+    for (let i = 0; i < 26; i++) {
+      const id = String.fromCharCode(65 + i);
+      if (!nodes.some(node => node.id === id)) return id;
+    }
+    let index = 1;
+    while (nodes.some(node => node.id === `N${index}`)) index++;
+    return `N${index}`;
+  };
+
+  const handleCanvasClick = (event: React.MouseEvent<SVGSVGElement>) => {
+    if (!editable || editorMode !== 'add-node') return;
+    const point = getCanvasPoint(event);
+    const id = nextNodeId();
+    onNodesChange?.([...nodes, { id, label: id, ...point }]);
+    setEditorMode('select');
+  };
+
+  const handleNodeClick = (event: React.MouseEvent<SVGGElement>, node: GraphNode) => {
+    if (!editable) return;
+    event.stopPropagation();
+    if (editorMode === 'delete') {
+      onNodesChange?.(nodes.filter(item => item.id !== node.id));
+      onEdgesChange?.(edges.filter(edge => edge.u !== node.id && edge.v !== node.id));
+      setSelectedNodeIds([]);
+      return;
+    }
+    if (editorMode === 'connect') {
+      setSelectedNodeIds(previous => {
+        if (previous.includes(node.id)) return previous.filter(id => id !== node.id);
+        return previous.length >= 2 ? [node.id] : [...previous, node.id];
+      });
+      return;
+    }
+    setSelectedNodeIds([node.id]);
+  };
+
+  const connectSelectedNodes = () => {
+    if (selectedNodeIds.length !== 2) return;
+    const [u, v] = selectedNodeIds;
+    if (u === v || edges.some(edge => (edge.u === u && edge.v === v) || (edge.u === v && edge.v === u))) return;
+    const weight = Number(newEdgeWeight);
+    if (!Number.isFinite(weight) || (mode === 'dijkstra' && weight < 0)) {
+      window.alert(mode === 'dijkstra' ? 'Dijkstra requires non-negative edge weights.' : 'Enter a valid numeric weight.');
+      return;
+    }
+    onEdgesChange?.([...edges, { id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, u, v, weight }]);
+    setSelectedNodeIds([]);
+    setEditorMode('select');
+  };
+
+  const exportGraph = () => {
+    const blob = new Blob([JSON.stringify({ nodes, edges }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'greedylab-graph.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importGraph = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const value = JSON.parse(await file.text()) as { nodes?: GraphNode[]; edges?: GraphEdge[] };
+      if (!Array.isArray(value.nodes) || !Array.isArray(value.edges)) throw new Error('Expected nodes and edges arrays.');
+      const ids = new Set<string>();
+      value.nodes.forEach(node => {
+        if (!node || typeof node.id !== 'string' || !node.id || ids.has(node.id) || typeof node.label !== 'string' || !Number.isFinite(node.x) || !Number.isFinite(node.y)) throw new Error('Every vertex needs a unique id, label, and finite x/y coordinates.');
+        ids.add(node.id);
+      });
+      value.edges.forEach(edge => {
+        if (!edge || typeof edge.id !== 'string' || !edge.id || !ids.has(edge.u) || !ids.has(edge.v) || edge.u === edge.v || !Number.isFinite(edge.weight)) throw new Error('Every edge needs a unique id, two existing distinct vertices, and a finite weight.');
+        if (mode === 'dijkstra' && edge.weight < 0) throw new Error('Dijkstra requires non-negative edge weights.');
+      });
+      if (new Set(value.edges.map(edge => edge.id)).size !== value.edges.length) throw new Error('Edge ids must be unique.');
+      onImportGraph?.(value.nodes, value.edges);
+      setSelectedNodeIds([]);
+      setSelectedEdgeId(null);
+    } catch (error) {
+      window.alert(error instanceof Error ? `Could not import graph: ${error.message}` : 'Could not import graph JSON.');
+    }
+  };
+
+  const handleEdgeClick = (event: React.MouseEvent<SVGGElement>, edge: GraphEdge) => {
+    if (!editable) return;
+    event.stopPropagation();
+    if (editorMode === 'add-node' || editorMode === 'connect') return;
+    if (editorMode === 'delete') {
+      onEdgesChange?.(edges.filter(item => item.id !== edge.id));
+      setSelectedEdgeId(null);
+      return;
+    }
+    setSelectedEdgeId(edge.id);
+    const nextWeight = window.prompt(`New weight for ${edge.u} — ${edge.v}:`, String(edge.weight));
+    if (nextWeight === null) return;
+    const weight = Number(nextWeight);
+    if (!Number.isFinite(weight) || (mode === 'dijkstra' && weight < 0)) {
+      window.alert(mode === 'dijkstra' ? 'Dijkstra requires non-negative edge weights.' : 'Enter a valid numeric weight.');
+      return;
+    }
+    onEdgesChange?.(edges.map(item => item.id === edge.id ? { ...item, weight } : item));
+  };
+
+  const handleCanvasPointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!editable || !draggingNodeId || editorMode !== 'select') return;
+    const point = getCanvasPoint(event);
+    onNodesChange?.(nodes.map(node => node.id === draggingNodeId ? { ...node, ...point } : node));
+  };
 
   // Helper to test if edge is in a list
   const isEdgeInList = (list: GraphEdge[], e: GraphEdge) => {
@@ -32,6 +173,45 @@ export const GraphVisualizer: React.FC<Props> = ({
 
   return (
     <div className="bg-gray-950/80 p-5 rounded-2xl border border-gray-800 space-y-4 shadow-inner">
+      {editable && (
+        <div className="rounded-xl border border-cyan-900/70 bg-gray-900/80 p-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-bold text-white">Custom Graph Builder</div>
+              <div className="text-[11px] text-gray-400 mt-1">Add nodes, drag them around, connect nodes, or select an edge to edit its weight.</div>
+            </div>
+            <span className="text-[10px] font-mono text-cyan-300">{nodes.length} VERTICES · {edges.length} EDGES</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {([
+              ['select', 'Move / Edit'], ['add-node', '+ Add Vertex'], ['connect', '+ Add Edge'], ['delete', 'Delete']
+            ] as const).map(([value, label]) => (
+              <button key={value} onClick={() => { setEditorMode(value); setSelectedNodeIds([]); }}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${editorMode === value ? 'border-cyan-500 bg-cyan-950 text-cyan-200' : 'border-gray-700 bg-gray-950 text-gray-300 hover:border-gray-500'}`}>
+                {label}
+              </button>
+            ))}
+            {selectedNodeIds.length === 2 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-gray-300">{selectedNodeIds.join(' — ')}</span>
+                <input aria-label="New edge weight" type="number" min={mode === 'dijkstra' ? 0 : undefined} value={newEdgeWeight} onChange={e => setNewEdgeWeight(e.target.value)} className="w-20 rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-xs text-white" />
+                <button onClick={connectSelectedNodes} className="rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white hover:bg-cyan-500">Create Edge</button>
+              </div>
+            )}
+            {selectedNodeIds.length === 1 && editorMode === 'connect' && <span className="self-center text-xs text-cyan-300">Select one more vertex.</span>}
+          </div>
+          <div className="flex flex-wrap gap-2 border-t border-gray-800 pt-3">
+            <button onClick={onClearGraph} className="rounded-lg border border-rose-900/70 bg-rose-950/40 px-3 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-900/50">Clear Graph</button>
+            <button onClick={() => { onNodesChange?.(sampleNodes.map(node => ({ ...node }))); onEdgesChange?.(sampleEdges.map(edge => ({ ...edge }))); setSelectedNodeIds([]); setSelectedEdgeId(null); }} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 hover:border-gray-500">Reset Sample Graph</button>
+            <button onClick={exportGraph} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 hover:border-gray-500">Export JSON</button>
+            <button onClick={() => importRef.current?.click()} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 hover:border-gray-500">Import JSON</button>
+            <input ref={importRef} type="file" accept="application/json,.json" onChange={importGraph} className="hidden" />
+          </div>
+          <div className="text-[11px] text-gray-500">
+            {editorMode === 'add-node' ? 'Click an empty spot on the canvas to add a vertex.' : editorMode === 'connect' ? 'Select two vertices, enter a weight, then create the edge.' : editorMode === 'delete' ? 'Click a vertex or edge to delete it.' : 'Drag a vertex to reposition it. Click an edge to edit its weight.'}
+          </div>
+        </div>
+      )}
       {/* Legend Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-gray-800 pb-3 font-mono">
         <span className="text-cyan-400 font-bold">
@@ -64,7 +244,8 @@ export const GraphVisualizer: React.FC<Props> = ({
 
       {/* Graph SVG Canvas */}
       <div className="bg-gray-900/60 rounded-xl border border-gray-800 p-2 flex justify-center items-center overflow-hidden">
-        <svg viewBox="0 0 520 260" className="w-full max-w-xl h-64 select-none">
+        <svg ref={svgRef} viewBox="0 0 520 260" preserveAspectRatio="none" onClick={handleCanvasClick} onPointerMove={handleCanvasPointerMove} onPointerUp={() => setDraggingNodeId(null)} onPointerLeave={() => setDraggingNodeId(null)} className={`w-full max-w-xl h-64 select-none ${editable && editorMode === 'add-node' ? 'cursor-crosshair' : ''}`}>
+          {nodes.length === 0 && <text x="260" y="130" textAnchor="middle" fill="#64748b" fontSize="13">Add a vertex to start building your graph</text>}
           {/* Defs for glow filters & markers */}
           <defs>
             <filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%">
@@ -89,7 +270,10 @@ export const GraphVisualizer: React.FC<Props> = ({
             let strokeWidth = 2;
             let strokeDash: string | undefined = undefined;
 
-            if (isMst) {
+            if (editable && selectedEdgeId === e.id) {
+              strokeColor = '#a78bfa';
+              strokeWidth = 4;
+            } else if (isMst) {
               strokeColor = '#10b981'; // emerald-500
               strokeWidth = 4;
             } else if (isRejected) {
@@ -109,7 +293,7 @@ export const GraphVisualizer: React.FC<Props> = ({
             const midY = (nodeU.y + nodeV.y) / 2;
 
             return (
-              <g key={e.id}>
+              <g key={e.id} onClick={(event) => handleEdgeClick(event, e)} className={editable ? 'cursor-pointer' : ''}>
                 <line
                   x1={nodeU.x}
                   y1={nodeU.y}
@@ -156,7 +340,11 @@ export const GraphVisualizer: React.FC<Props> = ({
             let strokeColor = '#64748b';
             let strokeWidth = 2;
 
-            if (isCurrent) {
+            if (editable && selectedNodeIds.includes(n.id)) {
+              fillColor = '#164e63';
+              strokeColor = '#22d3ee';
+              strokeWidth = 4;
+            } else if (isCurrent) {
               fillColor = '#78350f';
               strokeColor = '#fbbf24';
               strokeWidth = 3.5;
@@ -167,7 +355,12 @@ export const GraphVisualizer: React.FC<Props> = ({
             }
 
             return (
-              <g key={n.id} className="transition-all duration-300">
+              <g key={n.id} onClick={(event) => handleNodeClick(event, n)} onPointerDown={(event) => {
+                if (!editable || editorMode !== 'select') return;
+                event.stopPropagation();
+                setDraggingNodeId(n.id);
+                (event.currentTarget as SVGGElement).setPointerCapture?.(event.pointerId);
+              }} className={`transition-all duration-300 ${editable ? 'cursor-grab active:cursor-grabbing' : ''}`}>
                 <circle
                   cx={n.x}
                   cy={n.y}

@@ -170,3 +170,16 @@ GREEDY_LAB/
 ## 📜 License
 
 This project is licensed under the [MIT License](LICENSE).
+
+### Custom Graph Builder
+
+The graph visualization workspace includes an interactive graph editor for Prim, Kruskal, and Dijkstra:
+
+- **Add Vertex:** choose the tool and click a location on the graph canvas.
+- **Move Vertex:** drag a vertex to reposition it.
+- **Connect Vertices:** select two vertices, enter an edge weight, and create the edge.
+- **Edit Edge Weight:** click an edge while in Move / Edit mode. Dijkstra rejects negative weights.
+- **Delete:** select the Delete tool, then click a vertex or edge. Removing a vertex also removes its connected edges.
+- **Reset:** use Reset Default Graph Topology to restore the original sample graph.
+
+Graph changes are held in application state and immediately feed the existing algorithm implementations. No backend service is required.

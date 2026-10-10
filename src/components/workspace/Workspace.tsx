@@ -102,10 +102,34 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
     { id: 'e9', u: 'E', v: 'F', weight: 3 },
   ];
 
-  const [graphNodes, setGraphNodes] = useState<GraphNode[]>(defaultGraphNodes);
-  const [graphEdges, setGraphEdges] = useState<GraphEdge[]>(defaultGraphEdges);
+  const [graphNodes, setGraphNodes] = useState<GraphNode[]>(() => {
+    try {
+      const saved = localStorage.getItem('greedylab-custom-graph');
+      if (saved) {
+        const parsed = JSON.parse(saved) as { nodes?: GraphNode[]; edges?: GraphEdge[] };
+        if (Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) return parsed.nodes;
+      }
+    } catch { /* Ignore invalid saved graph data and use the sample graph. */ }
+    return defaultGraphNodes;
+  });
+  const [graphEdges, setGraphEdges] = useState<GraphEdge[]>(() => {
+    try {
+      const saved = localStorage.getItem('greedylab-custom-graph');
+      if (saved) {
+        const parsed = JSON.parse(saved) as { nodes?: GraphNode[]; edges?: GraphEdge[] };
+        if (Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) return parsed.edges;
+      }
+    } catch { /* Ignore invalid saved graph data and use the sample graph. */ }
+    return defaultGraphEdges;
+  });
   const [startNode, setStartNode] = useState('A');
   const [targetNode, setTargetNode] = useState('F');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('greedylab-custom-graph', JSON.stringify({ nodes: graphNodes, edges: graphEdges }));
+    } catch { /* Storage can be unavailable or full; graph editing still works for this session. */ }
+  }, [graphNodes, graphEdges]);
 
   // Playback state
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -192,9 +216,9 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
         greedy,
         steps: greedy.steps,
         regret: 0,
-        isOptimal: true,
-        greedySummary: `Weight: ${greedy.totalWeight} (${greedy.acceptedCount} edges)`,
-        optimalSummary: `Weight: ${greedy.totalWeight} (Provably Optimal MST)`
+        isOptimal: greedy.isSpanningTree,
+        greedySummary: `Weight: ${greedy.totalWeight} (${greedy.acceptedCount} edges)${greedy.isSpanningTree ? '' : ' · disconnected forest'}`,
+        optimalSummary: greedy.isSpanningTree ? `Weight: ${greedy.totalWeight} (Provably Optimal MST)` : 'No spanning tree: graph is disconnected'
       };
     } else if (problem === 'prim') {
       const greedy = runPrim(graphNodes, graphEdges, startNode);
@@ -202,9 +226,9 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
         greedy,
         steps: greedy.steps,
         regret: 0,
-        isOptimal: true,
-        greedySummary: `Weight: ${greedy.totalWeight} (Root: ${startNode})`,
-        optimalSummary: `Weight: ${greedy.totalWeight} (Provably Optimal MST)`
+        isOptimal: greedy.isSpanningTree,
+        greedySummary: `Weight: ${greedy.totalWeight} (Root: ${startNode})${greedy.isSpanningTree ? '' : ' · disconnected component'}`,
+        optimalSummary: greedy.isSpanningTree ? `Weight: ${greedy.totalWeight} (Provably Optimal MST)` : 'No spanning tree: graph is disconnected'
       };
     } else {
       // Dijkstra
@@ -213,8 +237,8 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
         greedy,
         steps: greedy.steps,
         regret: 0,
-        isOptimal: true,
-        greedySummary: `Distance to ${targetNode}: ${greedy.destinationDistance}`,
+        isOptimal: !greedy.hasNegativeEdge,
+        greedySummary: greedy.hasNegativeEdge ? 'Invalid input: negative edge weight' : `Distance to ${targetNode}: ${greedy.destinationDistance === Infinity ? 'unreachable' : greedy.destinationDistance}`,
         optimalSummary: `Shortest Path: ${greedy.shortestPath.join(' → ')}`
       };
     }
@@ -730,6 +754,23 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
                 mode={problem as 'kruskal' | 'prim' | 'dijkstra'}
                 currentStepData={currentStepData}
                 realWorldMode={realWorldMode}
+                editable
+                sampleNodes={defaultGraphNodes}
+                sampleEdges={defaultGraphEdges}
+                onNodesChange={(nextNodes) => {
+                  setGraphNodes(nextNodes);
+                  if (nextNodes.length > 0 && !nextNodes.some(node => node.id === startNode)) setStartNode(nextNodes[0].id);
+                  if (nextNodes.length > 0 && !nextNodes.some(node => node.id === targetNode)) setTargetNode(nextNodes[nextNodes.length - 1].id);
+                  if (nextNodes.length === 0) { setStartNode(''); setTargetNode(''); }
+                }}
+                onEdgesChange={setGraphEdges}
+                onClearGraph={() => { setGraphNodes([]); setGraphEdges([]); }}
+                onImportGraph={(nextNodes, nextEdges) => {
+                  setGraphNodes(nextNodes);
+                  setGraphEdges(nextEdges);
+                  setStartNode(nextNodes[0]?.id || '');
+                  setTargetNode(nextNodes[nextNodes.length - 1]?.id || '');
+                }}
               />
             )}
           </div>
