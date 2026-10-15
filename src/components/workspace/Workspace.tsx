@@ -34,12 +34,13 @@ import { GraphVisualizer } from '../visualization/GraphVisualizer';
 import { ALGORITHM_COMPLEXITIES, runAlgorithmBenchmark, BenchmarkPoint } from '../../analysis/complexity';
 
 interface Props {
+  initialProblem?: ProblemId;
   realWorldMode: boolean;
   onSaveHistory: (entry: HistoryEntry) => void;
 }
 
-export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => {
-  const [problem, setProblem] = useState<ProblemId>('coin_change');
+export const Workspace: React.FC<Props> = ({ initialProblem = 'coin_change', realWorldMode, onSaveHistory }) => {
+  const [problem, setProblem] = useState<ProblemId>(initialProblem);
   const [strategy, setStrategy] = useState<string>('earliest_finish');
   const [activeBottomTab, setActiveBottomTab] = useState<'comparison' | 'trace' | 'complexity' | 'proof'>('comparison');
   const [saveToast, setSaveToast] = useState(false);
@@ -322,10 +323,10 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
   const complexityInfo = ALGORITHM_COMPLEXITIES[problem];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="workspace-page w-full px-4 xl:px-6 py-4 space-y-4">
       {/* 1. Header Problem & Strategy Selectors */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-brand-card p-4 rounded-2xl border border-brand-border space-y-1.5 shadow-sm">
+      <div className="workspace-config grid gap-3">
+        <div className="bg-brand-card p-3 rounded-xl border border-brand-border space-y-1.5 shadow-sm">
           <label className="text-[11px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
             1. Problem Laboratory Module
           </label>
@@ -351,7 +352,7 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
           </select>
         </div>
 
-        <div className="bg-brand-card p-4 rounded-2xl border border-brand-border space-y-1.5 shadow-sm">
+        <div className="bg-brand-card p-3 rounded-xl border border-brand-border space-y-1.5 shadow-sm">
           <label className="text-[11px] font-mono text-purple-400 font-bold uppercase tracking-wider">
             2. Greedy Strategy / Heuristic
           </label>
@@ -438,7 +439,7 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
           )}
         </div>
 
-        <div className="bg-brand-card p-4 rounded-2xl border border-brand-border flex items-center justify-between shadow-sm">
+        <div className="bg-brand-card p-3 rounded-xl border border-brand-border flex items-center justify-between shadow-sm">
           <div>
             <div className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">Comparative Status & Regret</div>
             <div className={`text-lg sm:text-xl font-bold font-mono ${execution.isOptimal ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -455,9 +456,9 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
       </div>
 
       {/* 2. Main Workspace 3-Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="workspace-main-grid grid gap-4">
         {/* Left Column: Input Configuration */}
-        <div className="lg:col-span-4 bg-brand-card p-5 rounded-2xl border border-brand-border space-y-4 shadow-md">
+        <div className="workspace-inputs bg-brand-card p-4 rounded-2xl border border-brand-border space-y-3 shadow-md">
           <div className="flex items-center justify-between border-b border-gray-800 pb-2">
             <span className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">Dataset & Inputs</span>
             <span className="text-[10px] text-cyan-400 font-mono">Live Interactive</span>
@@ -698,7 +699,7 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
         </div>
 
         {/* Center Column: Active Visualization & Step Controller */}
-        <div className="lg:col-span-5 bg-brand-card p-5 rounded-2xl border border-brand-border flex flex-col justify-between space-y-4 shadow-md">
+        <div className="workspace-visualizer-card bg-brand-card p-3 rounded-2xl border border-brand-border flex flex-col justify-between space-y-3 shadow-md">
           <div>
             <div className="flex items-center justify-between border-b border-gray-800 pb-2 mb-3">
               <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider">
@@ -837,7 +838,7 @@ export const Workspace: React.FC<Props> = ({ realWorldMode, onSaveHistory }) => 
         </div>
 
         {/* Right Column: Step Decision Inspector & Solver Comparative Report */}
-        <div className="lg:col-span-3 bg-brand-card p-5 rounded-2xl border border-brand-border flex flex-col justify-between space-y-4 shadow-md">
+        <div className="workspace-inspector bg-brand-card p-4 rounded-2xl border border-brand-border flex flex-col justify-between space-y-3 shadow-md">
           <div className="space-y-3">
             <div className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider border-b border-gray-800 pb-2">
               Decision Inspector

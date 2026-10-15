@@ -57,14 +57,14 @@ export const HuffmanVisualizer: React.FC<Props> = ({
               y1={pos.y}
               x2={pos.leftPos.x}
               y2={pos.leftPos.y}
-              stroke="#0ea5e9"
+              stroke="#69a5b1"
               strokeWidth="2"
               strokeDasharray="3 3"
             />
             <text
               x={(pos.x + pos.leftPos.x) / 2 - 8}
               y={(pos.y + pos.leftPos.y) / 2}
-              fill="#38bdf8"
+              fill="#477f8c"
               fontSize="11"
               fontFamily="monospace"
               fontWeight="bold"
@@ -82,14 +82,14 @@ export const HuffmanVisualizer: React.FC<Props> = ({
               y1={pos.y}
               x2={pos.rightPos.x}
               y2={pos.rightPos.y}
-              stroke="#a855f7"
+              stroke="#9277ad"
               strokeWidth="2"
               strokeDasharray="3 3"
             />
             <text
               x={(pos.x + pos.rightPos.x) / 2 + 6}
               y={(pos.y + pos.rightPos.y) / 2}
-              fill="#c084fc"
+              fill="#796298"
               fontSize="11"
               fontFamily="monospace"
               fontWeight="bold"
@@ -105,15 +105,15 @@ export const HuffmanVisualizer: React.FC<Props> = ({
           cx={pos.x}
           cy={pos.y}
           r={pos.node.char ? 18 : 14}
-          fill={pos.node.char ? '#065f46' : '#1e1b4b'}
-          stroke={pos.node.char ? '#34d399' : '#818cf8'}
+          fill={pos.node.char ? '#e5f1e6' : '#eee7f6'}
+          stroke={pos.node.char ? '#619272' : '#9277ad'}
           strokeWidth="2"
         />
         <text
           x={pos.x}
           y={pos.node.char ? pos.y - 2 : pos.y + 4}
           textAnchor="middle"
-          fill="#ffffff"
+          fill="#263146"
           fontSize="11"
           fontWeight="bold"
           fontFamily="monospace"
@@ -125,7 +125,7 @@ export const HuffmanVisualizer: React.FC<Props> = ({
             x={pos.x}
             y={pos.y + 10}
             textAnchor="middle"
-            fill="#a7f3d0"
+            fill="#34734f"
             fontSize="9"
             fontFamily="monospace"
           >

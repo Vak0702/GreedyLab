@@ -172,7 +172,7 @@ export const GraphVisualizer: React.FC<Props> = ({
   };
 
   return (
-    <div className="bg-gray-950/80 p-5 rounded-2xl border border-gray-800 space-y-4 shadow-inner">
+    <div className="graph-visualizer-shell bg-gray-950/80 p-3 rounded-2xl border border-gray-800 space-y-3 shadow-inner">
       {editable && (
         <div className="rounded-xl border border-cyan-900/70 bg-gray-900/80 p-3 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -244,7 +244,7 @@ export const GraphVisualizer: React.FC<Props> = ({
 
       {/* Graph SVG Canvas */}
       <div className="bg-gray-900/60 rounded-xl border border-gray-800 p-2 flex justify-center items-center overflow-hidden">
-        <svg ref={svgRef} viewBox="0 0 520 260" preserveAspectRatio="none" onClick={handleCanvasClick} onPointerMove={handleCanvasPointerMove} onPointerUp={() => setDraggingNodeId(null)} onPointerLeave={() => setDraggingNodeId(null)} className={`w-full max-w-xl h-64 select-none ${editable && editorMode === 'add-node' ? 'cursor-crosshair' : ''}`}>
+        <svg ref={svgRef} width="100%" viewBox="0 0 520 260" preserveAspectRatio="xMidYMid meet" onClick={handleCanvasClick} onPointerMove={handleCanvasPointerMove} onPointerUp={() => setDraggingNodeId(null)} onPointerLeave={() => setDraggingNodeId(null)} className={`graph-canvas w-full h-auto max-w-none select-none ${editable && editorMode === 'add-node' ? 'cursor-crosshair' : ''}`}>
           {nodes.length === 0 && <text x="260" y="130" textAnchor="middle" fill="#64748b" fontSize="13">Add a vertex to start building your graph</text>}
           {/* Defs for glow filters & markers */}
           <defs>
@@ -266,25 +266,25 @@ export const GraphVisualizer: React.FC<Props> = ({
             const isFrontier = isEdgeInList(frontierEdges, e);
             const isRelaxed = relaxedEdge?.id === e.id || (relaxedEdge?.u === e.u && relaxedEdge?.v === e.v);
 
-            let strokeColor = '#334155'; // default slate-700
+            let strokeColor = '#c8c5c2'; // muted warm-grey default
             let strokeWidth = 2;
             let strokeDash: string | undefined = undefined;
 
             if (editable && selectedEdgeId === e.id) {
-              strokeColor = '#a78bfa';
+              strokeColor = '#9277ad';
               strokeWidth = 4;
             } else if (isMst) {
-              strokeColor = '#10b981'; // emerald-500
+              strokeColor = '#e76478'; // selected MST edge
               strokeWidth = 4;
             } else if (isRejected) {
-              strokeColor = '#f43f5e'; // rose-500
+              strokeColor = '#bb6470'; // rejected cycle edge
               strokeWidth = 2;
               strokeDash = '4 4';
             } else if (isRelaxed || isCurrent) {
-              strokeColor = '#f59e0b'; // amber-500
+              strokeColor = '#c28b39'; // active candidate
               strokeWidth = 3.5;
             } else if (isFrontier) {
-              strokeColor = '#38bdf8'; // sky-400
+              strokeColor = '#69a5b1'; // cut frontier
               strokeWidth = 2.5;
               strokeDash = '3 3';
             }
@@ -294,6 +294,16 @@ export const GraphVisualizer: React.FC<Props> = ({
 
             return (
               <g key={e.id} onClick={(event) => handleEdgeClick(event, e)} className={editable ? 'cursor-pointer' : ''}>
+                <line
+                  x1={nodeU.x}
+                  y1={nodeU.y}
+                  x2={nodeV.x}
+                  y2={nodeV.y}
+                  stroke="transparent"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                  pointerEvents="stroke"
+                />
                 <line
                   x1={nodeU.x}
                   y1={nodeU.y}
@@ -311,7 +321,7 @@ export const GraphVisualizer: React.FC<Props> = ({
                   width="24"
                   height="20"
                   rx="6"
-                  fill="#0f172a"
+                  fill="#fffdfa"
                   stroke={strokeColor}
                   strokeWidth="1.5"
                 />
@@ -319,7 +329,7 @@ export const GraphVisualizer: React.FC<Props> = ({
                   x={midX}
                   y={midY + 4}
                   textAnchor="middle"
-                  fill="#f1f5f9"
+                  fill="#536073"
                   fontSize="11"
                   fontFamily="monospace"
                   fontWeight="bold"
@@ -336,21 +346,21 @@ export const GraphVisualizer: React.FC<Props> = ({
             const isCurrent = currentNode === n.id;
             const dist = distances[n.id];
 
-            let fillColor = '#1e293b';
-            let strokeColor = '#64748b';
+            let fillColor = '#fffdfa';
+            let strokeColor = '#d8cec8';
             let strokeWidth = 2;
 
             if (editable && selectedNodeIds.includes(n.id)) {
-              fillColor = '#164e63';
-              strokeColor = '#22d3ee';
+              fillColor = '#e3f1f2';
+              strokeColor = '#69a5b1';
               strokeWidth = 4;
             } else if (isCurrent) {
-              fillColor = '#78350f';
-              strokeColor = '#fbbf24';
+              fillColor = '#fff2d4';
+              strokeColor = '#c28b39';
               strokeWidth = 3.5;
             } else if (isVisited) {
-              fillColor = '#064e3b';
-              strokeColor = '#34d399';
+              fillColor = '#e5f1e6';
+              strokeColor = '#619272';
               strokeWidth = 3;
             }
 
@@ -361,6 +371,7 @@ export const GraphVisualizer: React.FC<Props> = ({
                 setDraggingNodeId(n.id);
                 (event.currentTarget as SVGGElement).setPointerCapture?.(event.pointerId);
               }} className={`transition-all duration-300 ${editable ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+                <circle cx={n.x} cy={n.y} r={28} fill="transparent" pointerEvents="all" />
                 <circle
                   cx={n.x}
                   cy={n.y}
@@ -374,7 +385,7 @@ export const GraphVisualizer: React.FC<Props> = ({
                   x={n.x}
                   y={n.y + 4}
                   textAnchor="middle"
-                  fill="#ffffff"
+                  fill="#263146"
                   fontSize="12"
                   fontWeight="bold"
                   fontFamily="monospace"
@@ -391,15 +402,15 @@ export const GraphVisualizer: React.FC<Props> = ({
                       width="32"
                       height="16"
                       rx="4"
-                      fill="#030712"
-                      stroke={dist === Infinity ? '#4b5563' : '#38bdf8'}
+                      fill="#fffdfa"
+                  stroke={dist === Infinity ? '#b8b1ad' : '#69a5b1'}
                       strokeWidth="1"
                     />
                     <text
                       x={n.x}
                       y={n.y - 20}
                       textAnchor="middle"
-                      fill={dist === Infinity ? '#9ca3af' : '#38bdf8'}
+                      fill={dist === Infinity ? '#7d7b80' : '#477f8c'}
                       fontSize="10"
                       fontFamily="monospace"
                       fontWeight="bold"
